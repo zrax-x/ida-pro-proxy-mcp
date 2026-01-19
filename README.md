@@ -12,6 +12,24 @@ Multi-binary analysis proxy for ida-pro-mcp. Enables simultaneous analysis of mu
 
 ## Installation
 
+### Prerequisites
+
+Before installing ida-pro-proxy-mcp, you need to install [ida-pro-mcp](https://github.com/mrexodia/ida-pro-mcp) first:
+
+```bash
+# Clone and install ida-pro-mcp
+git clone https://github.com/mrexodia/ida-pro-mcp.git
+cd ida-pro-mcp
+uv pip install -e .
+
+# Verify the installation
+uv run idalib-mcp --host 127.0.0.1 --port 8745
+```
+
+Make sure the `idalib-mcp` command is available before proceeding.
+
+### Install ida-pro-proxy-mcp
+
 ```bash
 cd ida-pro-proxy-mcp
 uv pip install -e .
