@@ -65,6 +65,22 @@ Create a JSON config file:
 }
 ```
 
+### MCP Client Configuration
+
+To connect from an MCP client (like Kiro, Claude Desktop, etc.), add the following to your MCP configuration file:
+
+```json
+{
+  "mcpServers": {
+    "ida-pro-proxy": {
+      "url": "http://127.0.0.1:8744/mcp"
+    }
+  }
+}
+```
+
+For Kiro IDE, the configuration file is located at `~/.kiro/settings/mcp.json` or `.kiro/settings/mcp.json` in your workspace.
+
 ## MCP Tools
 
 ### Session Management
