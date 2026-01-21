@@ -322,12 +322,13 @@ class ProcessManager:
         
         return info.is_alive()
     
-    def forward_request(self, port: int, request: dict) -> dict:
+    def forward_request(self, port: int, request: dict, timeout: Optional[int] = None) -> dict:
         """Forward a JSON-RPC request to a child process.
         
         Args:
             port: Port of the target process
             request: JSON-RPC request dictionary
+            timeout: Optional timeout override (seconds)
             
         Returns:
             JSON-RPC response dictionary
@@ -339,8 +340,9 @@ class ProcessManager:
         if not self.check_process_health(port):
             raise RuntimeError(f"Process on port {port} is not healthy")
         
+        request_timeout = timeout if timeout is not None else self.request_timeout
         conn = http.client.HTTPConnection(
-            self.host, port, timeout=self.request_timeout
+            self.host, port, timeout=request_timeout
         )
         
         try:
@@ -350,6 +352,8 @@ class ProcessManager:
             data = response.read().decode()
             return json.loads(data)
         except Exception as e:
+            method = request.get("method", "unknown")
+            logger.error(f"Request '{method}' to port {port} failed: {e}")
             raise RuntimeError(f"Request to port {port} failed: {e}")
         finally:
             conn.close()

@@ -195,7 +195,7 @@ class ProxyConfig:
     port: int = 8744
     max_processes: int = 2
     base_port: int = 8745
-    request_timeout: int = 30
+    request_timeout: int = 300
     
     def validate(self) -> None:
         """Validate configuration values.

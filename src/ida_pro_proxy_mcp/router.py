@@ -216,7 +216,7 @@ class RequestRouter:
                 },
                 "serverInfo": {
                     "name": "ida-pro-proxy-mcp",
-                    "version": "0.1.0",
+                    "version": "0.1.1",
                 },
             },
         }
@@ -235,7 +235,8 @@ class RequestRouter:
             try:
                 response = self.session_manager.process_manager.forward_request(
                     current.process_port,
-                    {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
+                    {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}},
+                    timeout=2  # Fail fast if process is busy
                 )
                 if "result" in response:
                     child_tools = response["result"].get("tools", [])
@@ -250,7 +251,8 @@ class RequestRouter:
                 try:
                     response = self.session_manager.process_manager.forward_request(
                         default_port,
-                        {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
+                        {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}},
+                        timeout=2  # Fail fast if process is busy
                     )
                     if "result" in response:
                         child_tools = response["result"].get("tools", [])

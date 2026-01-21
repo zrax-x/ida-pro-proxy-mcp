@@ -6,13 +6,14 @@ import logging
 import signal
 import sys
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from typing import Optional
 
 from .models import ProxyConfig
 from .process_manager import ProcessManager
 from .session_manager import SessionManager
 from .router import RequestRouter
+from . import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +130,7 @@ class ProxyMcpServer:
             process_manager=self.process_manager,
         )
         self.router = RequestRouter(self.session_manager)
-        self._server: Optional[HTTPServer] = None
+        self._server: Optional[ThreadingHTTPServer] = None
     
     def serve(self):
         """Start the HTTP server."""
@@ -148,13 +149,13 @@ class ProxyMcpServer:
         # Set router on handler class
         ProxyHttpHandler.router = self.router
         
-        self._server = HTTPServer(
+        self._server = ThreadingHTTPServer(
             (self.config.host, self.config.port),
             ProxyHttpHandler,
         )
         
         logger.info(
-            f"IDA Pro Proxy MCP server starting on "
+            f"IDA Pro Proxy MCP server v{__version__} starting on "
             f"http://{self.config.host}:{self.config.port}"
         )
         logger.info(f"Max processes: {self.config.max_processes}")
