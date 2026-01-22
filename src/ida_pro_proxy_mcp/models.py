@@ -105,8 +105,7 @@ class ProcessInfo:
     def terminate(self) -> None:
         """Terminate the process gracefully, including all child processes.
         
-        Uses psutil-like approach to find and kill child processes,
-        or falls back to direct process termination.
+        Uses platform-specific approaches to terminate processes.
         """
         if self._external:
             # Don't terminate external processes
@@ -116,33 +115,45 @@ class ProcessInfo:
         
         pid = self.process.pid
         
-        # Try to find and kill all child processes first
+        import platform
+        is_windows = platform.system() == "Windows"
+        
         try:
-            # Get all child PIDs by reading /proc
-            child_pids = self._get_child_pids(pid)
-            
-            # Send SIGTERM to main process first
-            os.kill(pid, signal.SIGTERM)
-            
-            # Send SIGTERM to all children
-            for child_pid in child_pids:
+            if is_windows:
+                # Windows: Use process.terminate() which sends CTRL_BREAK_EVENT
+                self.process.terminate()
                 try:
-                    os.kill(child_pid, signal.SIGTERM)
-                except (ProcessLookupError, OSError):
-                    pass
-            
-            # Wait for main process
-            try:
-                self.process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                # Force kill if not terminated
-                os.kill(pid, signal.SIGKILL)
+                    self.process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    # Force kill if not terminated
+                    self.process.kill()
+                    self.process.wait()
+            else:
+                # Unix: Try to find and kill all child processes first
+                child_pids = self._get_child_pids(pid)
+                
+                # Send SIGTERM to main process first
+                os.kill(pid, signal.SIGTERM)
+                
+                # Send SIGTERM to all children
                 for child_pid in child_pids:
                     try:
-                        os.kill(child_pid, signal.SIGKILL)
+                        os.kill(child_pid, signal.SIGTERM)
                     except (ProcessLookupError, OSError):
                         pass
-                self.process.wait()
+                
+                # Wait for main process
+                try:
+                    self.process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    # Force kill if not terminated
+                    os.kill(pid, signal.SIGKILL)
+                    for child_pid in child_pids:
+                        try:
+                            os.kill(child_pid, signal.SIGKILL)
+                        except (ProcessLookupError, OSError):
+                            pass
+                    self.process.wait()
                 
         except (ProcessLookupError, OSError):
             # Process already terminated

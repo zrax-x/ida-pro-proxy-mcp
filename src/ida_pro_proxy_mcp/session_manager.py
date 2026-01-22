@@ -194,7 +194,26 @@ class SessionManager:
             }
             
             try:
-                response = self.process_manager.forward_request(port, request)
+                # Use longer timeout for opening files (especially on first open)
+                # Check if .i64/.idb file exists to estimate timeout needed
+                import platform
+                is_windows = platform.system() == "Windows"
+                
+                # Check for existing IDA database files
+                i64_path = path.with_suffix('.i64')
+                idb_path = path.with_suffix('.idb')
+                has_database = i64_path.exists() or idb_path.exists()
+                
+                if has_database:
+                    # Database exists, should be fast (10-60 seconds)
+                    open_timeout = 60 if is_windows else 30
+                else:
+                    # First time opening, may need to create database
+                    # Even without auto-analysis, this can take time on Windows
+                    open_timeout = 300 if is_windows else 180  # 5 minutes on Windows, 3 on Linux
+                
+                logger.info(f"Opening binary with timeout={open_timeout}s (has_database={has_database}, windows={is_windows})")
+                response = self.process_manager.forward_request(port, request, timeout=open_timeout)
             except Exception as e:
                 # Clean up on failure (only if we started a new process)
                 if started_new_process:

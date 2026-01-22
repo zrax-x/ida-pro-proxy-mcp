@@ -48,7 +48,11 @@ class ProcessManager:
             True if server is responding, False otherwise
         """
         try:
-            conn = http.client.HTTPConnection(self.host, port, timeout=2)
+            # Use longer timeout on Windows
+            import platform
+            check_timeout = 5 if platform.system() == "Windows" else 2
+            
+            conn = http.client.HTTPConnection(self.host, port, timeout=check_timeout)
             test_request = json.dumps({
                 "jsonrpc": "2.0",
                 "id": 0,
@@ -169,19 +173,37 @@ class ProcessManager:
         
         logger.info(f"Starting idalib-mcp on port {port}: {' '.join(cmd)}")
         
+        # Platform-specific settings
+        import platform
+        is_windows = platform.system() == "Windows"
+        
         try:
-            # Don't use start_new_session - let child processes inherit our process group
-            # This way, when proxy is killed via process group, children are also killed
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+            # On Windows, use CREATE_NEW_PROCESS_GROUP to allow proper termination
+            # On Unix, don't use start_new_session to inherit process group
+            if is_windows:
+                # Windows-specific: CREATE_NEW_PROCESS_GROUP = 0x00000200
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    creationflags=0x00000200,  # CREATE_NEW_PROCESS_GROUP
+                )
+            else:
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
             
             # Wait for process to be ready by polling the HTTP endpoint
             start_time = time.time()
             ready = False
             last_error = None
+            
+            # Use longer connection timeout on Windows
+            conn_timeout = 5 if is_windows else 2
+            # Use longer retry interval on Windows
+            retry_interval = 1.0 if is_windows else 0.5
             
             while time.time() - start_time < startup_timeout:
                 # Check if process crashed
@@ -194,7 +216,7 @@ class ProcessManager:
                 
                 # Try to connect to the HTTP endpoint
                 try:
-                    conn = http.client.HTTPConnection(self.host, port, timeout=2)
+                    conn = http.client.HTTPConnection(self.host, port, timeout=conn_timeout)
                     # Send a simple initialize request to check if server is ready
                     test_request = json.dumps({
                         "jsonrpc": "2.0",
@@ -215,7 +237,7 @@ class ProcessManager:
                     conn.close()
                 except (ConnectionRefusedError, OSError, http.client.HTTPException) as e:
                     last_error = e
-                    time.sleep(0.5)  # Wait before retrying
+                    time.sleep(retry_interval)  # Wait before retrying
                     continue
             
             if not ready:

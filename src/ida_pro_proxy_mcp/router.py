@@ -165,9 +165,14 @@ class RequestRouter:
             return
         
         try:
+            # Use longer timeout for initial tools fetch
+            import platform
+            refresh_timeout = 15 if platform.system() == "Windows" else 10
+            
             response = self.session_manager.process_manager.forward_request(
                 default_port,
-                {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
+                {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}},
+                timeout=refresh_timeout
             )
             if "result" in response:
                 self._cached_tools = response["result"].get("tools", [])
@@ -231,12 +236,16 @@ class RequestRouter:
         current = self.session_manager.get_current_session()
         child_tools = []
         
+        # Use longer timeout on Windows (10s) vs Linux (5s)
+        import platform
+        tools_timeout = 10 if platform.system() == "Windows" else 5
+        
         if current:
             try:
                 response = self.session_manager.process_manager.forward_request(
                     current.process_port,
                     {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}},
-                    timeout=2  # Fail fast if process is busy
+                    timeout=tools_timeout
                 )
                 if "result" in response:
                     child_tools = response["result"].get("tools", [])
@@ -252,7 +261,7 @@ class RequestRouter:
                     response = self.session_manager.process_manager.forward_request(
                         default_port,
                         {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}},
-                        timeout=2  # Fail fast if process is busy
+                        timeout=tools_timeout
                     )
                     if "result" in response:
                         child_tools = response["result"].get("tools", [])

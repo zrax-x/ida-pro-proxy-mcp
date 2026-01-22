@@ -62,13 +62,28 @@ class ProxyHttpHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", len(response_body))
             self.end_headers()
-            self.wfile.write(response_body)
+            
+            # Try to write response, but catch connection errors gracefully
+            try:
+                self.wfile.write(response_body)
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError) as e:
+                # Client closed connection before we could send response
+                # This is common on Windows when client times out
+                logger.debug(f"Client closed connection before response could be sent: {e}")
+                return
             
         except json.JSONDecodeError as e:
             self._send_json_error(-32700, f"Parse error: {e}")
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError) as e:
+            # Connection already closed, can't send error response
+            logger.debug(f"Connection closed during error handling: {e}")
         except Exception as e:
             logger.exception(f"Error handling MCP request: {e}")
-            self._send_json_error(-32603, f"Internal error: {e}")
+            try:
+                self._send_json_error(-32603, f"Internal error: {e}")
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                # Connection closed, can't send error
+                logger.debug("Connection closed, unable to send error response")
     
     def _handle_sse(self):
         """Handle SSE connections."""
@@ -102,11 +117,15 @@ class ProxyHttpHandler(BaseHTTPRequestHandler):
         }
         response_body = json.dumps(response).encode("utf-8")
         
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", len(response_body))
-        self.end_headers()
-        self.wfile.write(response_body)
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", len(response_body))
+            self.end_headers()
+            self.wfile.write(response_body)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError) as e:
+            # Connection already closed, can't send error
+            logger.debug(f"Connection closed, unable to send error response: {e}")
 
 
 class ProxyMcpServer:
