@@ -206,11 +206,11 @@ class SessionManager:
                 
                 if has_database:
                     # Database exists, should be fast (10-60 seconds)
-                    open_timeout = 60 if is_windows else 30
+                    open_timeout = 120
                 else:
                     # First time opening, may need to create database
                     # Even without auto-analysis, this can take time on Windows
-                    open_timeout = 300 if is_windows else 180  # 5 minutes on Windows, 3 on Linux
+                    open_timeout = 600
                 
                 logger.info(f"Opening binary with timeout={open_timeout}s (has_database={has_database}, windows={is_windows})")
                 response = self.process_manager.forward_request(port, request, timeout=open_timeout)

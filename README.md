@@ -10,6 +10,13 @@ Multi-binary analysis proxy for ida-pro-mcp. Enables simultaneous analysis of mu
 - **Transparent routing**: Analysis tools automatically route to correct process
 - **MCP compatible**: Works with any MCP-compatible client
 
+## Platform Compatibility
+
+⚠️ **Note**: The proxy server is currently more stable on Linux environments. On Windows, you may experience timeout issues and process hangs, especially during the first-time opening of binary files. The root cause is still under investigation. If you encounter issues on Windows, consider:
+- Using WSL (Windows Subsystem for Linux)
+- Pre-generating `.i64` database files on Linux before using them on Windows
+- Increasing timeout values in the configuration
+
 ## Installation
 
 ### Prerequisites
